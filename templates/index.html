@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Name}} — Portfolio</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="hero">
+    <h1>{{.Name}}</h1>
+    <p class="tagline">{{.Tagline}}</p>
+  </header>
+
+  <main>
+    <section class="projects">
+      <h2>Projects</h2>
+      <div class="grid">
+        {{range .Projects}}
+        <article class="card">
+          <h3><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a></h3>
+          <p>{{.Description}}</p>
+        </article>
+        {{end}}
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; {{.Name}}</p>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
