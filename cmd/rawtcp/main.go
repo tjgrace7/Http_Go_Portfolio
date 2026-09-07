@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"net"
 	"os"
@@ -51,8 +52,10 @@ func RequestHandler(parts []string, r Request) Request {
 	requestLine := make(map[string]string)
 	headersparsed := false
 	for i, line := range parts[1:] {
+
 		if line == "" {
 			// The next line is the body
+			fmt.Println("Body Loop: ", line)
 			headersparsed = true
 			if i+2 < len(parts) {
 				body := strings.Join(parts[i+2:], "\r\n")
@@ -105,6 +108,7 @@ func GetServerAddress(address string) string {
 
 // Get Request Uptime returns the server uptime in a formatted HTTP response.
 func GetServerUptime() string {
+	fmt.Println("Uptime")
 	uptime := time.Since(serverStartTime)
 	return HTTPResponse(200, "OK", "uptime = "+uptime.String(), "text/plain")
 }
@@ -157,7 +161,7 @@ func Authenticator(r Request) (string, bool) {
 		maintain = false
 		return response, maintain
 	}
-	if token != api_key {
+	if subtle.ConstantTimeCompare([]byte(token), []byte(api_key)) == 0 {
 		fmt.Println("Invalid API Key")
 		response = HTTPResponse(401, "Unauthorized", "401 Unauthorized", "text/plain")
 		maintain = false
@@ -166,7 +170,10 @@ func Authenticator(r Request) (string, bool) {
 	return response, maintain
 }
 
-func bufferloop(conn net.Conn, r Request) (Request, error) {
+func bufferloop(conn net.Conn) (Request, error) {
+	var parts []string
+	var r Request
+	r.HeaderParsed = false
 	for !r.HeaderParsed {
 		fmt.Println("Headers Loop")
 		headerbuf := make([]byte, 1024)
@@ -174,11 +181,24 @@ func bufferloop(conn net.Conn, r Request) (Request, error) {
 		if err != nil {
 			break
 		}
-		parts := strings.Split(string(headerbuf[:n]), "\r\n")
+		parts = strings.Split(string(headerbuf[:n]), "\r\n")
+		if len(strings.Split(parts[0], " ")) < 3 {
+			return r, fmt.Errorf("Malformatted Request. Method, Address and Version incorrect")
+		}
+
 		r = RequestHandler(parts, r)
 	}
+	r.Method = strings.TrimSpace(strings.Split(parts[0], " ")[0])
+	r.Address = strings.TrimSpace(strings.Split(parts[0], " ")[1])
+	r.Version = strings.TrimSpace(strings.Split(parts[0], " ")[2])
 	if r.ContentLength == "" {
-		return r, fmt.Errorf("Missing Content Length")
+
+		if r.Method == "POST" {
+			return r, fmt.Errorf("Missing Content Length")
+		} else if r.Method == "GET" {
+			fmt.Println("Get Method")
+			return r, nil
+		}
 	}
 	maxlength, lenerr := strconv.Atoi(r.ContentLength)
 	if lenerr != nil {
@@ -211,29 +231,13 @@ func bufferloop(conn net.Conn, r Request) (Request, error) {
 func HandleConnection(conn net.Conn) {
 	defer conn.Close()
 	fmt.Println("Accepted connection from", conn.RemoteAddr())
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	var r Request
-	if err != nil {
-		fmt.Println("Error reading from connection:", err)
-		return
-	}
-	parts := strings.Split(string(buf[:n]), "\r\n")
-	if len(strings.Split(parts[0], " ")) < 3 {
-		conn.Write([]byte(HTTPResponse(404, "Not Found", "404 Not Found", "text/plain")))
-		return
-	}
 	//Parses submitted request into usable data
-	r = RequestHandler(parts, r)
-	r, err = bufferloop(conn, r)
-	if err != nil {
+	r, buferr := bufferloop(conn)
+	if buferr != nil {
 		conn.Write([]byte(HTTPResponse(400, "400 Inccorect Request", err.Error(), "text/plain")))
 		return
 	}
 
-	r.Method = strings.TrimSpace(strings.Split(parts[0], " ")[0])
-	r.Address = strings.TrimSpace(strings.Split(parts[0], " ")[1])
-	r.Version = strings.TrimSpace(strings.Split(parts[0], " ")[2])
 	//Authenticates request
 	auth, check := Authenticator(r)
 	//kills connection if request is denied
