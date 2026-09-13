@@ -77,7 +77,7 @@ func TestResizeSearch(t *testing.T) {
 	for i := 0; i < len(users); i++ {
 		collisioncount, hmap = addtomap(users[i], djb2, hmap, collisioncount)
 		loadfactor := getloadpercentage(hmap.initial, i)
-		//change loadfactor to .75 to avoid firing
+		//change loadfactor to .90 to avoid firing test
 		if loadfactor > 0.90 {
 			fmt.Println("Hash Map Resized")
 			collisioncount, hmap = resize(hmap, 10)
