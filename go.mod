@@ -1,4 +1,4 @@
-module httpgoportfolio
+module github.com/tjgrace7/Http_Go_Portfolio
 
 go 1.27.0
 

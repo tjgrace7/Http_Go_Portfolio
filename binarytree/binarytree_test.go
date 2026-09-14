@@ -15,6 +15,6 @@ func TestNodeInsert(t *testing.T) {
 	display(root)
 	deletednode := delete(root, 56)
 	fmt.Println("Search for number returned: ", search(root, 8))
-	fmt.Println("Deleted Node is ", deletednode.Value)
+	fmt.Println("Root Node ", deletednode.Value)
 	display(root)
 }
